@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#F5F1FF">
+<title>Mine lykkehjul</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<style>
+/* Layout: én smal kolonne for telefon. Faner øverst, hjul i midten, felt og innstillinger under. */
+:root {
+  --bg: #F5F1FF;
+  --surface: #FFFFFF;
+  --surface-2: #F3EFFC;
+  --fg: #2A2540;
+  --muted: #6A6485;
+  --line: #E2DCF2;
+  --accent: #6B4EE6;
+  --accent-fg: #FFFFFF;
+  --danger: #B42318;
+  --font-display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #16132A; --surface: #211D38; --surface-2: #2A2547; --fg: #F2EFFF; --muted: #A9A3C6;
+    --line: #38325A; --accent: #B2A5FF; --accent-fg: #1B1535; --danger: #FF8A80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #16132A; --surface: #211D38; --surface-2: #2A2547; --fg: #F2EFFF; --muted: #A9A3C6;
+  --line: #38325A; --accent: #B2A5FF; --accent-fg: #1B1535; --danger: #FF8A80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.45;
+  padding-inline: 16px; padding-block: 20px 40px;
+}
+.app { max-width: 540px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+h1, h2, .display { font-family: var(--font-display); letter-spacing: -0.01em; }
+h1 { font-size: 1.6rem; line-height: 1.1; margin: 0; font-weight: 800; }
+h2 { font-size: 1.05rem; margin: 0; font-weight: 700; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.note { background: var(--surface); border: 1px solid var(--danger); color: var(--danger); border-radius: 10px; padding: 10px 12px; font-size: 0.9rem; }
+
+/* faner */
+.tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; margin-inline: -16px; padding-inline: 16px; }
+.tab { flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 8px 14px; font-weight: 600; font-size: 0.95rem; white-space: nowrap; }
+.tab[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.tab.add { border-style: dashed; color: var(--muted); background: transparent; }
+
+/* hjul */
+.stage { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.wheel-wrap { position: relative; width: 100%; max-width: 420px; }
+.wheel-wrap canvas { display: block; width: 100%; aspect-ratio: 1; border-radius: 50%; box-shadow: 0 10px 30px -10px rgba(107,78,230,.35); }
+.pointer { position: absolute; left: 50%; top: -4px; transform: translateX(-50%); width: 0; height: 0;
+  border-left: 14px solid transparent; border-right: 14px solid transparent; border-top: 28px solid var(--accent);
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+.spin { width: 100%; max-width: 420px; border: 0; border-radius: 14px; padding: 16px; background: var(--accent); color: var(--accent-fg);
+  font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; letter-spacing: 0.02em; }
+.spin:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.result { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-height: 76px; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+.result .label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.result .answer { font-family: var(--font-display); font-weight: 800; font-size: 1.5rem; line-height: 1.15; overflow-wrap: anywhere; }
+.result .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; color: var(--muted); }
+.result.empty .answer { font-size: 1rem; font-weight: 600; color: var(--muted); font-family: var(--font-body); }
+
+.link { background: none; border: 0; padding: 4px 0; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+/* felt */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.count { color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.item input[type="text"] { width: 100%; min-width: 0; background: var(--surface-2); border: 1px solid transparent; border-radius: 10px; padding: 10px 12px; }
+.item input[type="text"]:focus { border-color: var(--accent); outline: none; }
+.item.off input[type="text"] { color: var(--muted); text-decoration: line-through; }
+.icon-btn { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 1.2rem; line-height: 1; }
+.icon-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+.switch { appearance: none; -webkit-appearance: none; width: 44px; height: 26px; border-radius: 999px; background: var(--line); position: relative; margin: 0; cursor: pointer; flex: none; transition: background .15s; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.switch:checked { background: var(--accent); }
+.switch:checked::after { transform: translateX(18px); }
+
+.add-form { display: flex; gap: 8px; }
+.add-form input { flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; }
+.add-form input:focus { border-color: var(--accent); outline: none; }
+.btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 10px 14px; font-weight: 600; }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+.hint { color: var(--muted); font-size: 0.85rem; margin: 0; }
+
+details.panel > summary { cursor: pointer; font-family: var(--font-display); font-weight: 700; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+details.panel > summary::-webkit-details-marker { display: none; }
+details.panel > summary::after { content: "+"; color: var(--muted); font-size: 1.3rem; }
+details.panel[open] > summary::after { content: "–"; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.field input[type="text"], .field textarea { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; min-width: 0; }
+.field textarea { min-height: 90px; resize: vertical; font-size: 0.8rem; }
+.check { display: flex; gap: 12px; align-items: center; }
+.check span { min-width: 0; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.busy .lock { pointer-events: none; opacity: 0.55; }
+footer { color: var(--muted); font-size: 0.82rem; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
+</style><style>
+:root{color-scheme:light;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+body{margin:0}[hidden]{display:none!important}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark}}
+</style>
+</head>
+<body>
+
+
+<main class="app" id="app">
+  <h1>Mine lykkehjul</h1>
+  <div id="note" class="note" hidden>Nettleseren lar ikke denne siden lagre data. Endringer forsvinner når du lukker siden.</div>
+
+  <nav class="tabs lock" id="tabs" role="tablist" aria-label="Hjul"></nav>
+
+  <section class="stage" aria-label="Lykkehjul">
+    <div class="wheel-wrap">
+      <div class="pointer" aria-hidden="true"></div>
+      <canvas id="wheel" role="img" aria-label="Lykkehjul"></canvas>
+    </div>
+    <button class="spin" id="spin" type="button">Spinn</button>
+    <div class="result empty" id="result" aria-live="polite"></div>
+  </section>
+
+  <section class="panel lock" aria-labelledby="felt-h">
+    <div class="panel-head">
+      <h2 id="felt-h">Felt</h2>
+      <span class="count" id="count"></span>
+    </div>
+    <ul class="items" id="items"></ul>
+    <form class="add-form" id="addForm" autocomplete="off">
+      <label class="sr" for="addInput">Nytt felt</label>
+      <input id="addInput" type="text" placeholder="Legg til felt" maxlength="80">
+      <button class="btn primary" type="submit">Legg til</button>
+    </form>
+    <p class="hint">Bryteren styrer om feltet ligger på hjulet. Du kan lime inn flere felt om gangen, ett per linje.</p>
+  </section>
+
+  <details class="panel lock" id="settings">
+    <summary>Innstillinger for dette hjulet</summary>
+    <div class="field">
+      <label for="nameInput">Navn på hjulet</label>
+      <input id="nameInput" type="text" maxlength="40">
+    </div>
+    <label class="check" for="autoOff">
+      <input class="switch" type="checkbox" id="autoOff">
+      <span>Deaktiver feltet etter at det er trukket</span>
+    </label>
+    <div class="actions">
+      <button class="btn" type="button" id="reactivate">Aktiver alle felt</button>
+      <button class="btn danger" type="button" id="delWheel">Slett hjulet</button>
+    </div>
+  </details>
+
+  <details class="panel lock" id="backup">
+    <summary>Sikkerhetskopi</summary>
+    <p class="hint">Hjulene dine ligger bare i nettleseren på denne enheten. Kopier teksten under og ta vare på den hvis du vil flytte hjulene eller sikre dem mot at nettleserdata blir slettet.</p>
+    <div class="field">
+      <label for="backupText">Sikkerhetskopi (tekst)</label>
+      <textarea id="backupText" spellcheck="false"></textarea>
+    </div>
+    <div class="actions">
+      <button class="btn" type="button" id="makeBackup">Lag og kopier</button>
+      <button class="btn" type="button" id="restore">Gjenopprett fra teksten</button>
+    </div>
+    <p class="hint" id="backupMsg" aria-live="polite"></p>
+  </details>
+
+  <footer>Ingenting sendes noe sted. Alt lagres lokalt på denne enheten.</footer>
+</main>
+
+<script>
+(function () {
+  var COLORS = ['#FFB8A8', '#BFE8D4', '#C9BDFB', '#FFE29A', '#A9D8F5', '#F9BBD6', '#CDE7A3', '#FFCF9E'];
+  var INK = '#2A2540';
+  var KEY = 'mine-lykkehjul-v1';
+  var TAU = Math.PI * 2;
+  var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var $ = function (id) { return document.getElementById(id); };
+  function uid() { return Math.random().toString(36).slice(2, 9); }
+  function mk(name, texts, autoOff) {
+    return { id: uid(), name: name, autoOff: !!autoOff, items: texts.map(function (t) { return { id: uid(), text: t, active: true }; }) };
+  }
+  function seed() {
+    var w = [
+      mk('Husarbeid', ['Støvsuge', 'Vaske bad', 'Tømme oppvaskmaskinen', 'Brette klesvask', 'Ta ut søppel', 'Tørke av kjøkkenbenken'], true),
+      mk('Arbeidsoppgaver', ['Svare på e-post', 'Rydde i innboksen', 'Oppdatere dokumentasjon', 'Planlegge neste uke', 'Gå gjennom åpne saker'], true),
+      mk('Belønninger', ['Kaffepause', 'Kort spasertur', 'En kvadrat sjokolade', '10 minutter med en bok', 'Ring en venn'], false)
+    ];
+    return { wheels: w, current: w[0].id };
+  }
+  var memOnly = false;
+  function valid(d) {
+    return d && Array.isArray(d.wheels) && d.wheels.length && d.wheels.every(function (w) {
+      return w && typeof w.name === 'string' && Array.isArray(w.items) && w.items.every(function (i) { return i && typeof i.text === 'string'; });
+    });
+  }
+  function normalize(d) {
+    d.wheels.forEach(function (w) {
+      w.id = w.id || uid(); w.autoOff = !!w.autoOff;
+      w.items.forEach(function (i) { i.id = i.id || uid(); i.active = i.active !== false; });
+    });
+    if (!d.wheels.some(function (w) { return w.id === d.current; })) d.current = d.wheels[0].id;
+    return d;
+  }
+  function load() {
+    try {
+      var r = localStorage.getItem(KEY);
+      if (r) { var d = JSON.parse(r); if (valid(d)) return normalize(d); }
+    } catch (e) { memOnly = true; }
+    return seed();
+  }
+  var state = load();
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e) { memOnly = true; }
+    $('note').hidden = !memOnly;
+  }
+  function cur() { return state.wheels.filter(function (w) { return w.id === state.current; })[0]; }
+  function active(w) { return w.items.filter(function (i) { return i.active; }); }
+
+  var rot = 0, spinning = false, result = null, redrawTimer = null;
+
+  /* ---------- tegning ---------- */
+  function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function draw() {
+    var cv = $('wheel'), size = cv.clientWidth || 320, dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(size * dpr)) { cv.width = cv.height = Math.round(size * dpr); }
+    var ctx = cv.getContext('2d');
+    ctx.setTransform(cv.width / size, 0, 0, cv.width / size, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+    var cx = size / 2, cy = size / 2, r = size / 2 - 8;
+    var bg = cssVar('--surface'), fg = cssVar('--fg'), line = cssVar('--line'), muted = cssVar('--muted');
+    var act = active(cur()), n = act.length, k = size / 420;
+    if (n === 0) {
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fillStyle = cssVar('--surface-2'); ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = line; ctx.stroke();
+      ctx.fillStyle = muted; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '600 ' + (17 * k) + 'px ' + cssVar('--font-body');
+      ctx.fillText(cur().items.length ? 'Ingen aktive felt' : 'Legg til felt under', cx, cy);
+      return;
+    }
+    var s = TAU / n;
+    var fs = (n <= 6 ? 19 : n <= 12 ? 15 : n <= 20 ? 12 : 10) * k;
+    var colorFor = function (i) {
+      var c = i % COLORS.length;
+      if (n > 1 && i === n - 1 && c === 0) c = 1;
+      return COLORS[c];
+    };
+    for (var i = 0; i < n; i++) {
+      var a0 = rot + i * s, a1 = a0 + s;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, a0, a1); ctx.closePath();
+      ctx.fillStyle = colorFor(i); ctx.fill();
+      if (n > 1) { ctx.lineWidth = 3; ctx.strokeStyle = bg; ctx.stroke(); }
+      ctx.save();
+      ctx.translate(cx, cy); ctx.rotate(a0 + s / 2);
+      ctx.fillStyle = INK; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.font = '700 ' + fs + 'px ' + cssVar('--font-body');
+      var maxW = r * 0.66, t = act[i].text;
+      if (ctx.measureText(t).width > maxW) {
+        while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+        t = t.trim() + '…';
+      }
+      ctx.fillText(t, r - 16 * k, 0);
+      ctx.restore();
+    }
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.lineWidth = 5; ctx.strokeStyle = bg; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, 20 * k, 0, TAU); ctx.fillStyle = bg; ctx.fill();
+    ctx.lineWidth = 5; ctx.strokeStyle = cssVar('--accent'); ctx.stroke();
+  }
+
+  /* ---------- visning ---------- */
+  function renderTabs() {
+    var box = $('tabs'); box.textContent = '';
+    state.wheels.forEach(function (w) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'tab'; b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', w.id === state.current ? 'true' : 'false');
+      b.textContent = w.name || 'Uten navn';
+      b.addEventListener('click', function () {
+        if (spinning) return;
+        state.current = w.id; result = null; save(); renderAll();
+      });
+      box.appendChild(b);
+    });
+    var add = document.createElement('button');
+    add.type = 'button'; add.className = 'tab add'; add.textContent = '+ Nytt hjul';
+    add.addEventListener('click', function () {
+      var w = mk('Nytt hjul', [], false);
+      state.wheels.push(w); state.current = w.id; result = null; save(); renderAll();
+      $('settings').open = true; $('nameInput').focus(); $('nameInput').select();
+    });
+    box.appendChild(add);
+  }
+  function renderItems() {
+    var w = cur(), ul = $('items'); ul.textContent = '';
+    w.items.forEach(function (it) {
+      var li = document.createElement('li'); li.className = 'item' + (it.active ? '' : ' off');
+      var sw = document.createElement('input'); sw.type = 'checkbox'; sw.className = 'switch'; sw.checked = it.active;
+      sw.setAttribute('aria-label', 'På hjulet: ' + it.text);
+      sw.addEventListener('change', function () { it.active = sw.checked; save(); renderAll(); });
+      var tx = document.createElement('input'); tx.type = 'text'; tx.value = it.text; tx.maxLength = 80;
+      tx.setAttribute('aria-label', 'Navn på felt');
+      tx.addEventListener('change', function () {
+        var v = tx.value.trim();
+        if (!v) { w.items = w.items.filter(function (x) { return x !== it; }); } else { it.text = v; }
+        save(); renderAll();
+      });
+      var del = document.createElement('button'); del.type = 'button'; del.className = 'icon-btn';
+      del.textContent = '×'; del.setAttribute('aria-label', 'Fjern feltet ' + it.text);
+      del.addEventListener('click', function () {
+        w.items = w.items.filter(function (x) { return x !== it; });
+        if (result && result.itemId === it.id) result = null;
+        save(); renderAll();
+      });
+      li.appendChild(sw); li.appendChild(tx); li.appendChild(del); ul.appendChild(li);
+    });
+    var a = active(w).length;
+    $('count').textContent = w.items.length ? a + ' av ' + w.items.length + ' på hjulet' : '';
+  }
+  function renderResult() {
+    var box = $('result'), w = cur(), a = active(w).length;
+    box.textContent = '';
+    box.className = 'result';
+    function div(c, t) { var d = document.createElement('div'); d.className = c; d.textContent = t; return d; }
+    if (result && result.wheelId === w.id) {
+      box.appendChild(div('label', 'Trukket'));
+      box.appendChild(div('answer', result.text));
+      if (result.removed) {
+        var row = document.createElement('div'); row.className = 'row';
+        var sp = document.createElement('span'); sp.textContent = 'Tatt av hjulet.';
+        var un = document.createElement('button'); un.type = 'button'; un.className = 'link'; un.textContent = 'Angre';
+        un.addEventListener('click', function () {
+          w.items.forEach(function (i) { if (i.id === result.itemId) i.active = true; });
+          result.removed = false; save(); renderAll();
+        });
+        row.appendChild(sp); row.appendChild(un); box.appendChild(row);
+      }
+    } else {
+      box.classList.add('empty');
+      if (w.items.length === 0) box.appendChild(div('answer', 'Dette hjulet er tomt. Legg til felt under.'));
+      else if (a === 0) {
+        box.appendChild(div('answer', 'Alle feltene er deaktivert.'));
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'link'; b.textContent = 'Aktiver alle felt';
+        b.addEventListener('click', reactivate); box.appendChild(b);
+      } else box.appendChild(div('answer', 'Trykk Spinn for å trekke et felt.'));
+    }
+  }
+  function renderSettings() {
+    var w = cur();
+    if (document.activeElement !== $('nameInput')) $('nameInput').value = w.name;
+    $('autoOff').checked = w.autoOff;
+    resetDel();
+  }
+  function renderAll() {
+    renderTabs(); renderItems(); renderResult(); renderSettings(); draw();
+    $('spin').disabled = spinning || active(cur()).length === 0;
+    document.body.classList.toggle('busy', spinning);
+  }
+
+  /* ---------- spinn ---------- */
+  function spin() {
+    var w = cur(), act = active(w);
+    if (spinning || !act.length) return;
+    clearTimeout(redrawTimer);
+    spinning = true; result = null; renderAll();
+    var n = act.length, s = TAU / n;
+    var wi = Math.floor(Math.random() * n);
+    var c = (wi + 0.5) * s + (Math.random() - 0.5) * 0.7 * s;
+    var base = (((-Math.PI / 2 - c) % TAU) + TAU) % TAU;
+    var from = ((rot % TAU) + TAU) % TAU;
+    var delta = (((base - from) % TAU) + TAU) % TAU + (reduced ? 0 : TAU * (5 + Math.floor(Math.random() * 3)));
+    var start = rot, dur = reduced ? 500 : 4800, t0 = performance.now();
+    function step(t) {
+      var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 4);
+      rot = start + delta * e; draw();
+      if (p < 1) { requestAnimationFrame(step); return; }
+      var win = act[wi];
+      spinning = false;
+      result = { wheelId: w.id, itemId: win.id, text: win.text, removed: false };
+      if (w.autoOff) {
+        win.active = false; result.removed = true; save();
+        $('count').textContent = ''; renderItems(); renderResult();
+        $('spin').disabled = true; document.body.classList.remove('busy');
+        redrawTimer = setTimeout(renderAll, 1200);
+      } else { renderAll(); }
+    }
+    requestAnimationFrame(step);
+  }
+  $('spin').addEventListener('click', spin);
+
+  /* ---------- redigering ---------- */
+  function addItems(texts) {
+    var w = cur(), added = 0;
+    texts.forEach(function (t) { t = t.trim().slice(0, 80); if (t) { w.items.push({ id: uid(), text: t, active: true }); added++; } });
+    if (added) { save(); renderAll(); }
+  }
+  $('addForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var inp = $('addInput'); addItems(inp.value.split(/\r?\n/)); inp.value = ''; inp.focus();
+  });
+  $('addInput').addEventListener('paste', function (e) {
+    var t = (e.clipboardData || window.clipboardData).getData('text');
+    if (t && /\r?\n/.test(t.trim())) { e.preventDefault(); addItems(t.split(/\r?\n/)); }
+  });
+  $('nameInput').addEventListener('input', function () {
+    cur().name = $('nameInput').value.slice(0, 40); save(); renderTabs();
+  });
+  $('nameInput').addEventListener('blur', function () {
+    if (!cur().name.trim()) { cur().name = 'Uten navn'; save(); renderAll(); }
+  });
+  $('autoOff').addEventListener('change', function () { cur().autoOff = $('autoOff').checked; save(); });
+  function reactivate() {
+    cur().items.forEach(function (i) { i.active = true; });
+    if (result) result.removed = false;
+    save(); renderAll();
+  }
+  $('reactivate').addEventListener('click', reactivate);
+
+  var delArmed = false;
+  function resetDel() { delArmed = false; $('delWheel').textContent = 'Slett hjulet'; }
+  $('delWheel').addEventListener('click', function () {
+    if (!delArmed) { delArmed = true; $('delWheel').textContent = 'Trykk igjen for å slette'; return; }
+    var id = state.current;
+    state.wheels = state.wheels.filter(function (w) { return w.id !== id; });
+    if (!state.wheels.length) state.wheels.push(mk('Nytt hjul', [], false));
+    state.current = state.wheels[0].id; result = null; save(); renderAll();
+  });
+
+  /* ---------- sikkerhetskopi ---------- */
+  function msg(t) { $('backupMsg').textContent = t; }
+  $('makeBackup').addEventListener('click', function () {
+    var ta = $('backupText'); ta.value = JSON.stringify(state);
+    ta.focus(); ta.select();
+    var done = function (ok) { msg(ok ? 'Kopiert. Lim den inn et trygt sted.' : 'Teksten er markert. Kopier den manuelt.'); };
+    try { navigator.clipboard.writeText(ta.value).then(function () { done(true); }, function () { done(false); }); }
+    catch (e) { done(false); }
+  });
+  $('restore').addEventListener('click', function () {
+    try {
+      var d = JSON.parse($('backupText').value);
+      if (!valid(d)) throw new Error('bad');
+      state = normalize(d); result = null; save(); renderAll(); msg('Hjulene er gjenopprettet.');
+    } catch (e) { msg('Teksten er ikke en gyldig sikkerhetskopi.'); }
+  });
+
+  window.addEventListener('resize', draw);
+  if (window.matchMedia) {
+    try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw); } catch (e) {}
+  }
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+
+  save(); renderAll();
+})();
+</script>
+
+</body>
+</html>
